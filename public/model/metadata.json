@@ -1,0 +1,11 @@
+{
+  "tfjsVersion": "1.7.4",
+  "tmVersion": "2.4.10",
+  "packageVersion": "0.8.4-alpha2",
+  "packageName": "@teachablemachine/image",
+  "timeStamp": "2025-09-05T08:09:03.553Z",
+  "userMetadata": {},
+  "modelName": "pneumonia-detector",
+  "labels": ["NO PNEUMONIA DETECTED", "PNEUMONIA DETECTED"],
+  "imageSize": 224
+}

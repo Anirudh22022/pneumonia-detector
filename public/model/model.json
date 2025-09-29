@@ -1,0 +1,31 @@
+{
+  "modelTopology": {
+    "class_name": "Sequential",
+    "config": {
+      "name": "pneumonia_detector",
+      "layers": [
+        {
+          "class_name": "Conv2D",
+          "config": {
+            "filters": 32,
+            "kernel_size": [3, 3],
+            "activation": "relu",
+            "input_shape": [224, 224, 3]
+          }
+        }
+      ]
+    }
+  },
+  "weightsManifest": [
+    {
+      "paths": ["weights.bin"],
+      "weights": [
+        {
+          "name": "conv2d/kernel",
+          "shape": [3, 3, 3, 32],
+          "dtype": "float32"
+        }
+      ]
+    }
+  ]
+}
