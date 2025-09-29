@@ -1,0 +1,2 @@
+# pneumonia-detector
+capstone project
