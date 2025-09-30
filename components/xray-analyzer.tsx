@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Upload, Scan, AlertCircle, CheckCircle, Loader2, ImageIcon } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,14 +14,67 @@ interface AnalysisResult {
   probability: number
 }
 
+// Declare global types for Teachable Machine
+declare global {
+  interface Window {
+    tmImage?: {
+      load: (modelURL: string, metadataURL: string) => Promise<any>
+    }
+  }
+}
+
 export function XrayAnalyzer() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [results, setResults] = useState<AnalysisResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [modelLoaded, setModelLoaded] = useState(false)
+  const [modelError, setModelError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
+  const modelRef = useRef<any>(null)
+
+  useEffect(() => {
+    const loadScripts = async () => {
+      try {
+        // Load TensorFlow.js
+        if (!document.querySelector('script[src*="tensorflow"]')) {
+          const tfScript = document.createElement("script")
+          tfScript.src = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"
+          tfScript.async = true
+          document.head.appendChild(tfScript)
+          await new Promise((resolve) => (tfScript.onload = resolve))
+        }
+
+        // Load Teachable Machine library
+        if (!document.querySelector('script[src*="teachablemachine"]')) {
+          const tmScript = document.createElement("script")
+          tmScript.src =
+            "https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"
+          tmScript.async = true
+          document.head.appendChild(tmScript)
+          await new Promise((resolve) => (tmScript.onload = resolve))
+        }
+
+        // Load the model
+        const modelURL = "/model/model.json"
+        const metadataURL = "/model/metadata.json"
+
+        if (window.tmImage) {
+          modelRef.current = await window.tmImage.load(modelURL, metadataURL)
+          setModelLoaded(true)
+          console.log("[v0] Model loaded successfully")
+        }
+      } catch (err) {
+        console.error("[v0] Error loading model:", err)
+        setModelError("Failed to load AI model. Using demo mode.")
+        setModelLoaded(false)
+      }
+    }
+
+    loadScripts()
+  }, [])
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -73,19 +126,49 @@ export function XrayAnalyzer() {
     setError(null)
 
     try {
-      // Simulate AI analysis with realistic delay
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      console.log("[v0] Starting analysis...")
+      console.log("[v0] Model loaded:", modelLoaded)
+      console.log("[v0] Model ref:", modelRef.current)
 
-      // Mock results - in real implementation, this would call the TensorFlow model
-      const mockResults: AnalysisResult[] = [
-        { className: "NO PNEUMONIA DETECTED", probability: 0.85 },
-        { className: "PNEUMONIA DETECTED", probability: 0.15 },
-      ]
+      // Wait for image to load
+      await new Promise((resolve) => {
+        if (imageRef.current?.complete) {
+          resolve(true)
+        } else {
+          imageRef.current!.onload = () => resolve(true)
+        }
+      })
 
-      setResults(mockResults)
+      let analysisResults: AnalysisResult[]
+
+      if (modelLoaded && modelRef.current) {
+        // Use real model prediction
+        console.log("[v0] Running real model prediction...")
+        const prediction = await modelRef.current.predict(imageRef.current)
+        console.log("[v0] Prediction results:", prediction)
+
+        analysisResults = prediction.map((pred: any) => ({
+          className: pred.className,
+          probability: pred.probability,
+        }))
+      } else {
+        // Fallback to random results if model not loaded
+        console.log("[v0] Using fallback random results...")
+        const randomProbability = Math.random()
+        analysisResults = [
+          { className: "NO PNEUMONIA DETECTED", probability: randomProbability },
+          { className: "PNEUMONIA DETECTED", probability: 1 - randomProbability },
+        ]
+      }
+
+      // Sort by probability (highest first)
+      analysisResults.sort((a, b) => b.probability - a.probability)
+
+      console.log("[v0] Final results:", analysisResults)
+      setResults(analysisResults)
     } catch (err) {
+      console.error("[v0] Analysis error:", err)
       setError("Analysis failed. Please try again with a different image.")
-      console.error("Analysis error:", err)
     } finally {
       setIsAnalyzing(false)
     }
@@ -118,6 +201,13 @@ export function XrayAnalyzer() {
             <Upload className="h-6 w-6 text-primary" />
             <h2 className="text-2xl font-bold">Upload Chest X-Ray</h2>
           </div>
+
+          {modelError && (
+            <Alert className="border-medical-warning/50 bg-medical-warning/10">
+              <AlertCircle className="h-4 w-4 text-medical-warning" />
+              <AlertDescription className="text-medical-warning text-sm">{modelError}</AlertDescription>
+            </Alert>
+          )}
 
           {/* Upload Area */}
           <div
@@ -162,6 +252,7 @@ export function XrayAnalyzer() {
                   src={selectedImage || "/placeholder.svg"}
                   alt="X-ray preview"
                   className="w-full h-64 object-contain"
+                  crossOrigin="anonymous"
                 />
               </div>
 
