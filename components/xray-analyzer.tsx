@@ -60,6 +60,7 @@ export function XrayAnalyzer() {
         // Load the model
         const modelURL = "/model/model.json"
         const metadataURL = "/model/metadata.json"
+      
 
         if (window.tmImage) {
           modelRef.current = await window.tmImage.load(modelURL, metadataURL)
